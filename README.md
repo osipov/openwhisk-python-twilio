@@ -38,7 +38,7 @@ All of the code for the OpenWhisk action is in the ```py/service.py``` file. The
 
 ###Build and package the action implementation in a Docker image
 
-If you don't have Docker installed, it is available per the instructions provided in the link below. Note that if you are using Windows or OSX, you will want to install Docker Toolbox.
+If you don't have Docker installed, it is available per the instructions provided in the link below. Note that if you are using Windows or OSX, you will want to install Docker Toolbox from:
 
 https://docs.docker.com/engine/installation/
 
@@ -48,9 +48,10 @@ Make sure that your [Docker Hub](https://hub.docker.com) account is working corr
 
 You will be prompted to enter your Docker Hub password.
 
-Change to ```openwhisk-python-twilio``` as your working directory and execute the following commands to build the Docker image with the OpenWhisk action implementation and to push the image to Docker Hub. 
+Run the following commands to build the Docker image with the OpenWhisk action implementation and to push the image to Docker Hub. 
 
 ```
+cd openwhisk-python-twilio
 docker build -t $DOCKER_USER/openwhisk .
 docker push $DOCKER_USER/openwhisk
 ```
@@ -59,7 +60,7 @@ Use your browser to login to https://hub.docker.com after the docker push comman
 
 ###Create a stateless, Docker-based OpenWhisk action
 
-To get started with OpenWhisk, download and install a command line interface using the instructions from the following link
+To get started with OpenWhisk, download and install a command line interface using the instructions from the following link:
 
 https://new-console.ng.bluemix.net/openwhisk/cli
 
@@ -70,7 +71,7 @@ wsk action create --docker textAction $DOCKER_USER/openwhisk
 wsk action update textAction --param account_sid "$TWILIO_SID" --param auth_token "$TWILIO_TOKEN"
 ```
 
-The first command sets up a Docker-based OpenWhisk action called textAction that is implemented using the ```$DOCKER_USER/openwhisk``` image from Docker Hub. The second command configures the textAction with the Twilio account SID and authentication token, so that they don't need to be passed to the action execution environment on every action invocation.
+The first command sets up a Docker-based OpenWhisk action called textAction that is implemented using the ```$DOCKER_USER/openwhisk``` image from Docker Hub. The second command configures the textAction with the Twilio account SID and authentication token so that they don't need to be passed to the action execution environment on every action invocation.
 
 ###Test the serverless computing action
 
@@ -82,7 +83,7 @@ wsk activation poll
 
 to monitor the result of running the OpenWhisk action.
 
-In separate console window, execute the following command, replacing the **to** value to specify the phone number and the **msg** value to specify the text message contents:
+In a separate console, execute the following command, replacing the **to** value to specify the phone number and the **msg** value to specify the text message contents:
 
 ```
 wsk action invoke --blocking --result -p from "$TWILIO_NUMBER" -p to "867-5309" -p msg "Jenny I got your number" textAction
@@ -103,7 +104,7 @@ Upon successful action execution your **to** phone number should receive the tex
 }
 ```
 
-# [OPTIONAL] Use Cloudant to log text messages
+## OPTIONAL Use Cloudant to log text messages
 
 Before sending a text message, many applications need to log the text message contents. Cloudant, a PouchDB based JSON document database available from IBM Bluemix is well suited for storing records of the text messages. Since OpenWhisk integrates with Cloudant, it is possible to setup OpenWhisk to automatically trigger a Docker-based action to send a text message once the text message contents are stored in Cloudant. 
 
@@ -116,7 +117,6 @@ Next, download a Cloud Foundry command line interface for your operating system 
 https://github.com/cloudfoundry/cli/releases
 
 and then install it.
-
 
 ### Create a Cloudant deployment in IBM Bluemix
 
@@ -173,4 +173,60 @@ On successful creation of a database you should get back a JSON response that lo
 
 ```
 {"ok":true}
+```
+
+###Integrate Cloudant with OpenWhisk rules and triggers 
+
+Configure OpenWhisk to use the same Bluemix organization and space as your Cloudant instance by executing the following from your command line
+
+```
+wsk property set --namespace $ORG\_$SPACE
+```
+
+If your $ORG and $SPACE environment variables are not set, refer back to the section on creating the Cloudant database.
+
+Next update the list of packages by executing
+
+```
+wsk package refresh
+```
+
+One of the bindings listed in the output should be named ```Bluemix_cloudant-deployment_cloudant-key``` 
+
+Run following commands to configure OpenWhisk to start the action in case if a new document is placed in the Cloudant **sms** database. 
+
+```
+wsk trigger create textTrigger --feed /$ORG\_$SPACE/Bluemix_cloudant-deployment_cloudant-key/changes --param includeDoc true --param dbname sms
+wsk rule create --enable textRule textTrigger textAction
+```
+
+The first command creates a trigger that listens to changes to the Cloudant database. The second command is a rule that indicates that whenever the trigger is activated with a document in Cloudant, then the text messaging action (textAction created in the previous section) needs to be invoked.
+
+###Test the OpenWhisk trigger by logging the text message to the Cloudant database
+
+Open a separate console window and execute the following command to monitor the OpenWhisk log 
+
+```
+wsk activation poll
+```
+
+In another console, create a document in Cloudant using the following curl command, replacing the **to** value to specify the phone number and the **msg** value to specify the text message contents:
+
+```
+curl https://$USER:$PASSWORD@$HOST/sms -X POST -H "Content-Type: application/json" -d '{"from": "$TWILIO_NUMBER", "to": "867-5309", "msg":"Jenny I got your number"}'
+```
+
+On success,  you should see in the console running the ```wsk activation poll``` a response similar to following 
+
+```
+{
+    "status": [
+        {
+            "success": "true"
+        },
+        {
+            "message_sid": "SM5ecc4ee8c73b4ec29e79c0f1ede5a4c8"
+        }
+    ]
+}
 ```
