@@ -8,28 +8,31 @@ When a JSON document describing the text message is created in a Cloudant (Pouch
 
 [OpenWhisk](https://github.com/openwhisk/openwhisk) serverless computing environment is hosted on IBM Bluemix. To sign up for a 30 day trial of Bluemix register here: https://console.ng.bluemix.net/registration/
 
+This app uses [Twilio](https://www.twilio.com) for text messaging capabilities. To sign up for a Twilio account visit: https://www.twilio.com/try-twilio Make sure that once you have a Twilio account, you also obtain the account SID, authentication token, and register a phone number with an SMS capability.
+
 OpenWhisk uses [Docker Hub](https://hub.docker.com) to execute Docker based actions. You will need a Docker Hub account and you can sign up for one here: https://hub.docker.com
 
-This app uses [Twilio](https://www.twilio.com) for text messaging capabilities. To sign up for a Twilio account visit: https://www.twilio.com/try-twilio Make sure that once you have a Twilio account, you also obtain the account SID, authentication token, and register a phone number with an SMS capability.
+**NOTE:** To make it easier to use the instructions, export your various account settings as environment variables:
+
+* your Docker Hub username as DOCKER_USER
+* your Twilio Account SID as TWILIO_SID
+* your Twilio Auth Token as TWILIO_TOKEN
+
+```
+export DOCKER_USER=''
+export TWILIO_SID=''
+export TWILIO_TOKEN=''
+```
 
 ### Clone the OpenWhisk action implementation
 
-The OpenWhisk action is implemented as a Python Flask application that is packaged as Docker image and published to Docker Hub. You can clone the code for the action from github by running the following from your command line
+The OpenWhisk action is implemented as a Python Flask application that is packaged as a Docker image and published to Docker Hub. You can clone the code for the action from github by running the following from your command line
 
-```git clone https://github.com/osipov/compose-postgres-openwhisk.git```
+```git clone https://github.com/osipov/openwhisk-python-twilio.git```
 
-This will create a ```compose-postgres-openwhisk``` folder in your current working directory.
+This will create an ```openwhisk-python-twilio``` folder in your current working directory.
 
-Most of the code behind the action is in the ```server/service.js``` file in the functions listed below. As evident from the function names, once the action is triggered with a JSON object containing address data, the process is to first query the Pitney Bowes geolocation data to validate the address and to obtain the latitude and the longitude geolocation coordinates. Next, the process retrieves a connection to the Compose Postgres database, runs a SQL insert statement to put the address along with the coordinates into the database, and returns the connection back to the connection pool.
-
-```
-queryPitneyBowes
-connectToCompose
-insertIntoCompose
-releaseComposeConnection
-```
-
-The code to integrate with the OpenWhisk platform is in the ```server/app.js``` file. Once executed, the code starts a server on port 8080 and listens for HTTP POST requests to the server's _init_ and _run_ endpoints. Each of these endpoints delegates to the corresponding method implementation in ```server/service.js```. The init method simply logs its invocation and returns an HTTP 200 status code as expected by the OpenWhisk platform. The run method executes the process described above to query for geocoordinates and to insert the retrieved data to Compose Postgres. 
+All of the code for the OpenWhisk action is in the ```py/service.py``` file. There are two functions, called _init_ and _run_ that correspond to Flask app routes /init and /run. The init function expects an HTTP POST request (without a body) and returns an HTTP 200 status code as expected by the OpenWhisk platform. The run function verifies that an incoming HTTP POST request is a JSON document containing Twilio configuration parameters and the content of the text message. After configuring a Twilio client and sending the text message, the function returns back an HTTP 200 status code and a JSON document with a success status message.
 
 ###Build and package the action implementation in a Docker image
 
@@ -39,18 +42,18 @@ https://docs.docker.com/engine/installation/
 
 Make sure that your [Docker Hub](https://hub.docker.com) account is working correctly by trying to login using
 
-```docker login -u $USERNAME```
+```docker login -u $DOCKER_USER ```
 
-You will be prompted and will need to enter your Docker Hub password.
+You will be prompted to enter your Docker Hub password.
 
-Change to the ```compose-postgres-openwhisk``` as your working directory and execute the following commands to build the Docker image with the Node.JS based action implementation and to push the image to Docker Hub. 
+Change to the ```openwhisk-python-twilio``` as your working directory and execute the following commands to build the Docker image with the OpenWhisk action implementation and to push the image to Docker Hub. 
 
 ```
-docker build -t $USERNAME/compose .
-docker push $USERNAME/compose
+docker build -t $DOCKER_USER/openwhisk .
+docker push $DOCKER_USER/openwhisk
 ```
 
-Use your browser to login to https://hub.docker.com after the docker push command is done. You should be able to see the *compose* image in the list of your Docker Hub images.
+Use your browser to login to https://hub.docker.com after the docker push command is done. You should be able to see the **openwhisk** image in the list of your Docker Hub images.
 
 ###Create a stateless, Docker-based OpenWhisk action
 
@@ -58,32 +61,16 @@ To get started with OpenWhisk, download and install a command line interface usi
 
 https://new-console.ng.bluemix.net/openwhisk/cli
 
-Configure OpenWhisk to use the same Bluemix organization and space as your Cloudant instance by executing the following from your command line
-
-```
-wsk property set --namespace $ORG\_$SPACE
-```
-
-If your $ORG and $SPACE environment variables are not set, refer back to the section on creating a Cloudant database.
-
-Next update the list of packages by executing
-
-```
-wsk package refresh
-```
-
-One of the bindings listed in the output should be named ```Bluemix_cloudant-deployment_cloudant-key``` 
-
 The following commands need to be executed to configure your OpenWhisk instance to run the action in case if a new document is placed in the Cloudant database. 
 
-The first command sets up a Docker-based OpenWhisk action called composeInsertAction that is implemented using the ```$USERNAME/compose``` image from Docker Hub. 
+The first command sets up a Docker-based OpenWhisk action called textAction that is implemented using the ```$DOCKER_USER/openwhisk``` image from Docker Hub. The second command configures the textAction with the Twilio account SID and the authentication token, so that they don't need to be passed to the action on every action invocation.
 
 ```
-wsk action create --docker composeInsertAction $USERNAME/compose
-wsk action update composeInsertAction --param connString "$CONNSTRING" --param pbAppId "$PBAPPID"
-wsk trigger create composeTrigger --feed /$ORG\_$SPACE/Bluemix_cloudant-deployment_cloudant-key/changes --param includeDoc true --param dbname address_db
-wsk rule create --enable composeRule composeTrigger composeInsertAction
+wsk action create --docker textAction $DOCKER_USER/openwhisk
+wsk action update textAction --param account_sid "$TWILIO_SID" --param auth_token "$TWILIO_TOKEN"
 ```
+
+
 
 ###Test the serverless computing action by creating a document in the Cloudant database
 
