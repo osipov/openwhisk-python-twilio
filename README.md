@@ -10,7 +10,7 @@ When a JSON document describing the text message is created in a Cloudant (Pouch
 
 This app uses [Twilio](https://www.twilio.com) for text messaging capabilities. To sign up for a Twilio account visit: https://www.twilio.com/try-twilio Make sure that once you have a Twilio account, you also obtain the account SID, authentication token, and register a phone number with an SMS capability.
 
-OpenWhisk uses [Docker Hub](https://hub.docker.com) to execute Docker based actions. You will need a Docker Hub account and you can sign up for one here: https://hub.docker.com
+OpenWhisk uses [Docker Hub](https://hub.docker.com) to execute Docker based actions. You will need a Docker Hub account; to sign up for one use: https://hub.docker.com
 
 **NOTE:** To make it easier to use the instructions, export your various account settings as environment variables:
 
