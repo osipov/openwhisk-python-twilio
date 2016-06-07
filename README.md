@@ -1,6 +1,6 @@
 # Serverless computing on IBM Cloud
 
-This text messaging app shows how to use IBM Cloud serverless computing infrastructure built on OpenWhisk. The app is implemented in Python, packaged as a Docker image, and executed by OpenWhisk in a Docker container. 
+This text messaging app shows how to use IBM Cloud serverless computing infrastructure built on OpenWhisk. The app is implemented in Python with Flask, packaged as a Docker image, and executed by OpenWhisk in a Docker container. 
 
 When a JSON document describing the text message is created in a Cloudant (PouchDB based) database, OpenWhisk instantiates a Docker container with the Python code that connects to Twilio's text messaging service and sends an SMS.
 
