@@ -28,7 +28,7 @@ export TWILIO_NUMBER=''
 
 ### Clone the OpenWhisk action implementation
 
-The OpenWhisk action is implemented as a Python Flask application that is packaged as a Docker image and published to Docker Hub. You can clone the code for the action from github by running the following from your command line
+The OpenWhisk action is implemented as a Python Flask application which is packaged as a Docker image and published to Docker Hub. You can clone the code for the action from github by running the following from your command line
 
 ```git clone https://github.com/osipov/openwhisk-python-twilio.git```
 
@@ -70,17 +70,25 @@ wsk action create --docker textAction $DOCKER_USER/openwhisk
 wsk action update textAction --param account_sid "$TWILIO_SID" --param auth_token "$TWILIO_TOKEN"
 ```
 
-The first command sets up a Docker-based OpenWhisk action called textAction that is implemented using the ```$DOCKER_USER/openwhisk``` image from Docker Hub. The second command configures the textAction with the Twilio account SID and authentication token, so that they don't need to be passed to the action on every action invocation.
+The first command sets up a Docker-based OpenWhisk action called textAction that is implemented using the ```$DOCKER_USER/openwhisk``` image from Docker Hub. The second command configures the textAction with the Twilio account SID and authentication token, so that they don't need to be passed to the action execution environment on every action invocation.
 
 ###Test the serverless computing action
 
-Replace the to phone number (to parameter) and the text message contents (msg parameter) with the ones you prefer and execute the command to confirm that the text message is sent as expected.
+Open a dedicated console window and execute 
 
 ```
-wsk action invoke --blocking --result -p from "$TWILIO_NUMBER" -p to "555-867-5309" -p msg "Jenny I got your number" textAction
+wsk activation poll
 ```
 
-Upon successful action execution you should be able to see an output similar to the following:
+to monitor the result of running the OpenWhisk action.
+
+In separate console window, execute the following command, replacing the **to** value to specify the phone number and the **msg** value to specify the text message contents:
+
+```
+wsk action invoke --blocking --result -p from "$TWILIO_NUMBER" -p to "867-5309" -p msg "Jenny I got your number" textAction
+```
+
+Upon successful action execution your **to** phone number should receive the text message and you should be able to see an output similar to the following:
 
 ```
 {
@@ -95,30 +103,24 @@ Upon successful action execution you should be able to see an output similar to 
 }
 ```
 
-## [OPTIONAL] Use Cloudant to log text messages
+# [OPTIONAL] Use Cloudant to log text messages
 
-by creating a document in the Cloudant database
+Before sending a text message, many applications need to log the text message contents. Cloudant, a PouchDB based JSON document database available from IBM Bluemix is well suited for storing records of the text messages. Since OpenWhisk integrates with Cloudant, it is possible to setup OpenWhisk to automatically trigger a Docker-based action to send a text message once the text message contents are stored in Cloudant. 
 
-Open a separate console window and execute the following command to monitor the result of running the OpenWhisk action 
+### Before you start
 
-```
-wsk activation poll
-```
+Make sure that you have completed the steps in the previous section and have a working textAction in OpenWhisk that sends text messages using Twilio.
 
-In another console, create a document in Cloudant using the following curl command
-
-
-
-
-###Create a Cloudant / JSON document database in IBM Bluemix
-
-Download a CF command line interface for your operating system using the following link
+Next, download a Cloud Foundry command line interface for your operating system using the following link
 
 https://github.com/cloudfoundry/cli/releases
 
 and then install it.
 
-From your command line type in 
+
+### Create a Cloudant deployment in IBM Bluemix
+
+In your console, type in 
 
     cf login -a api.ng.bluemix.net
 
@@ -142,6 +144,7 @@ cf service-key cloudant-deployment cloudant-key
 ```
 
 The first command creates a new Cloudant deployment in your IBM Bluemix account, the second assigns a set of credentials for your account to the Cloudant deployment. The third command should output a JSON document similar to the following. 
+
 ```
 {
  "host": "d5695abd-d00e-40ef-1da6-1dc1e1111f63-bluemix.cloudant.com",
@@ -163,7 +166,7 @@ export HOST=''
 After the environment variables are correctly configured you should be able to create a new Cloudant database by executing the following curl command
 
 ```
-curl https://$USER:$PASSWORD@$HOST/address_db -X PUT
+curl https://$USER:$PASSWORD@$HOST/sms -X PUT
 ```
 
 On successful creation of a database you should get back a JSON response that looks like this:
@@ -171,5 +174,3 @@ On successful creation of a database you should get back a JSON response that lo
 ```
 {"ok":true}
 ```
-
-
