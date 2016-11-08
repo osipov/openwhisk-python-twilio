@@ -136,7 +136,7 @@ export SPACE=`cf target | grep 'Space:' | awk '{print $2}'`
 To create a new Cloudant database, run the following commands from your console
 
 ```
-cf create-service cloudantNoSQLDB Shared cloudant-deployment
+cf create-service cloudantNoSQLDB Lite cloudant-deployment
 
 cf create-service-key cloudant-deployment cloudant-key
 
